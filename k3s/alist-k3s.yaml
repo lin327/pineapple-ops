@@ -1,0 +1,63 @@
+# alist-k3s.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alist
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alist
+  template:
+    metadata:
+      labels:
+        app: alist
+    spec:
+      # 固定在新加坡 Master 节点（115 登录状态不能漂移）
+      nodeSelector:
+        kubernetes.io/hostname: sg-do-k8s-master-01
+      containers:
+      - name: alist
+        image: xhofe/alist:latest
+        ports:
+        - containerPort: 5244
+        volumeMounts:
+        - name: alist-data
+          mountPath: /opt/alist/data
+      volumes:
+      - name: alist-data
+        hostPath:
+          path: /opt/alist/data
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alist
+  namespace: default
+spec:
+  selector:
+    app: alist
+  ports:
+  - port: 5244
+    targetPort: 5244
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alist
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - host: drive.pineapple-user.site
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: alist
+            port:
+              number: 5244

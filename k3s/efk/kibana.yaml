@@ -1,0 +1,97 @@
+# ==============================================================================
+# Pineapple Ops - Kibana 部署配置
+# ==============================================================================
+# Deployment: 日志可视化面板
+# 部署方式: kubectl apply -f kibana.yaml
+# 访问地址: https://kibana.pineapple-user.site (通过 Nginx 代理)
+# ==============================================================================
+
+---
+# Deployment: Kibana
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:8.13.4
+          ports:
+            - containerPort: 5601
+              name: http
+
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: "http://elasticsearch:9200"
+            - name: SERVER_NAME
+              value: "kibana.pineapple-user.site"
+            - name: SERVER_BASEPATH
+              value: ""
+            - name: XPACK_SECURITY_ENABLED
+              value: "false"  # 内网访问，暂不开启认证
+            - name: LOGGING_ROOT_LEVEL
+              value: "warn"
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+
+          # 健康检查
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+
+      # 优先调度到 Worker 节点，给 Master 减负
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: DoesNotExist
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values: ["elasticsearch"]
+                topologyKey: kubernetes.io/hostname
+
+---
+# 已在 elasticsearch.yaml 中定义 NodePort Service
+# Service 信息:
+#   Name: kibana
+#   Namespace: logging
+#   Type: NodePort
+#   Port: 5601 -> NodePort: 30561

@@ -1,0 +1,215 @@
+# ==============================================================================
+# Pineapple Ops - Elasticsearch 部署配置
+# ==============================================================================
+# 部署在 K3s 集群的 logging 命名空间
+# StatefulSet 单节点模式，使用 local-path 存储
+#
+# 部署方式: kubectl apply -f elasticsearch.yaml
+# ==============================================================================
+
+---
+# 命名空间
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    app.kubernetes.io/part-of: efk
+
+---
+# Service: Elasticsearch 内部通信
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: logging
+  labels:
+    app: elasticsearch
+spec:
+  clusterIP: None  # Headless Service，用于 StatefulSet
+  ports:
+    - port: 9200
+      name: http
+    - port: 9300
+      name: transport
+  selector:
+    app: elasticsearch
+
+---
+# ConfigMap: Elasticsearch 配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: logging
+data:
+  elasticsearch.yml: |
+    cluster.name: pineapple-logs
+    node.name: ${HOSTNAME}
+    network.host: 0.0.0.0
+    discovery.seed_hosts: ["elasticsearch"]
+    cluster.initial_master_nodes: ["elasticsearch-0"]
+
+    # K3s 环境禁用 memory_lock，由 resource limits 管理内存
+    bootstrap.memory_lock: false
+
+    # 索引默认配置
+    action.auto_create_index: true
+    action.destructive_requires_name: true
+
+    # 路径
+    path.data: /usr/share/elasticsearch/data
+    path.logs: /usr/share/elasticsearch/logs
+
+  # JVM 配置：堆内存设置为可用内存的一半，最大不超过 4G
+  jvm.options: |
+    -Xms2g
+    -Xmx2g
+    -Djava.io.tmpdir=/usr/share/elasticsearch/tmp
+    -XX:+UseG1GC
+    -XX:MaxGCPauseMillis=200
+
+---
+# StatefulSet: Elasticsearch
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: logging
+  labels:
+    app: elasticsearch
+spec:
+  serviceName: elasticsearch
+  replicas: 1  # 单节点模式，资源有限
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      # 初始化容器：设置内存锁和数据目录权限
+      initContainers:
+        - name: init-sysctl
+          image: busybox:1.36
+          command:
+            - sysctl
+            - -w
+            - vm.max_map_count=262144
+          securityContext:
+            privileged: true
+
+        - name: init-permissions
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              chown -R 1000:1000 /usr/share/elasticsearch/data
+              mkdir -p /usr/share/elasticsearch/tmp
+              chmod 777 /usr/share/elasticsearch/tmp
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+          ports:
+            - containerPort: 9200
+              name: http
+            - containerPort: 9300
+              name: transport
+
+          env:
+            - name: cluster.name
+              value: "pineapple-logs"
+            - name: node.name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: discovery.seed_hosts
+              value: "elasticsearch"
+            - name: cluster.initial_master_nodes
+              value: "elasticsearch-0"
+            - name: ES_JAVA_OPTS
+              value: "-Xms2g -Xmx2g"
+            - name: bootstrap.memory_lock
+              value: "false"  # K3s 环境禁用
+            - name: xpack.security.enabled
+              value: "false"  # 内网访问，暂不开启认证
+            - name: xpack.security.enrollment.enabled
+              value: "false"
+
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+            - name: config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+            - name: config
+              mountPath: /usr/share/elasticsearch/config/jvm.options
+              subPath: jvm.options
+            - name: tmp
+              mountPath: /usr/share/elasticsearch/tmp
+
+          # 健康检查
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+
+      volumes:
+        - name: config
+          configMap:
+            name: elasticsearch-config
+        - name: tmp
+          emptyDir: {}
+
+  # 持久化存储
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path  # K3s 自带的本地存储
+        resources:
+          requests:
+            storage: 20Gi
+
+---
+# Service: Kibana 外部访问 (NodePort)
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  type: NodePort
+  ports:
+    - port: 5601
+      targetPort: 5601
+      nodePort: 30561
+  selector:
+    app: kibana

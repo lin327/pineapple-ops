@@ -1,0 +1,134 @@
+# ==============================================================================
+# Pineapple Ops - Elasticsearch ILM 策略配置
+# ==============================================================================
+# 用于自动清理 7 天前的日志索引
+#
+# 部署方式:
+#   1. 先部署 elasticsearch.yaml
+#   2. 等 ES 启动后执行此配置
+#   3. 或手动执行以下命令创建 ILM 策略:
+#
+# curl -X PUT "localhost:9200/_ilm/policy/k8s-logs-policy" -H 'Content-Type: application/json' -d'
+# {
+#   "policy": {
+#     "phases": {
+#       "hot": {
+#         "min_age": "0ms",
+#         "actions": {
+#           "rollover": {
+#             "max_age": "1d",
+#             "max_primary_shard_size": "10gb"
+#           },
+#           "set_priority": {
+#             "priority": 100
+#           }
+#         }
+#       },
+#       "delete": {
+#         "min_age": "7d",
+#         "actions": {
+#           "delete": {}
+#         }
+#       }
+#     }
+#   }
+# }'
+# ==============================================================================
+
+---
+# ConfigMap: ILM 初始化脚本
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ilm-setup
+  namespace: logging
+data:
+  # 创建 ILM 策略
+  create-ilm-policy.sh: |
+    #!/bin/sh
+    # 等待 Elasticsearch 就绪
+    echo "等待 Elasticsearch 就绪..."
+    until curl -s http://elasticsearch:9200/_cluster/health | grep -q '"status":"green"\|"status":"yellow"'; do
+      sleep 5
+    done
+    echo "Elasticsearch 已就绪"
+
+    # 创建 ILM 策略: 7 天后删除
+    echo "创建 ILM 策略..."
+    curl -X PUT "http://elasticsearch:9200/_ilm/policy/k8s-logs-policy" \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "policy": {
+          "phases": {
+            "hot": {
+              "min_age": "0ms",
+              "actions": {
+                "rollover": {
+                  "max_age": "1d",
+                  "max_primary_shard_size": "10gb"
+                },
+                "set_priority": {
+                  "priority": 100
+                }
+              }
+            },
+            "delete": {
+              "min_age": "7d",
+              "actions": {
+                "delete": {}
+              }
+            }
+          }
+        }
+      }'
+
+    # 为 system-logs 也创建 ILM 策略
+    curl -X PUT "http://elasticsearch:9200/_ilm/policy/system-logs-policy" \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "policy": {
+          "phases": {
+            "hot": {
+              "min_age": "0ms",
+              "actions": {
+                "rollover": {
+                  "max_age": "1d",
+                  "max_primary_shard_size": "5gb"
+                }
+              }
+            },
+            "delete": {
+              "min_age": "7d",
+              "actions": {
+                "delete": {}
+              }
+            }
+          }
+        }
+      }'
+
+    echo "ILM 策略创建完成"
+
+---
+# Job: 初始化 ILM 策略
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ilm-setup
+  namespace: logging
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: ilm-setup
+          image: curlimages/curl:latest
+          command: ["/bin/sh", "/scripts/create-ilm-policy.sh"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: ilm-setup
+            defaultMode: 0755

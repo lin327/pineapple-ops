@@ -1,0 +1,84 @@
+graph TB
+    User([用户浏览器]) -->|HTTPS| CF[Cloudflare CDN<br/>DNS 解析 + DDoS 防护]
+    CF -->|A 记录| NG[腾讯云 Nginx<br/>100.115.0.1<br/>2C 2G 50G 4Mbps<br/>SSL 终结 + 反向代理]
+    CF -.->|MX/SPF/DKIM| RESEND[Resend 邮件服务<br/>tentative.me 域名]
+
+subgraph DO [DigitalOcean 新加坡 · K3s 集群]
+    MASTER[K3s Master<br/>100.115.0.33<br/>4C 8G 160G<br/>etcd + API Server]
+    W1[K3s Worker1<br/>100.115.0.40<br/>2C 4G 80G<br/>kubelet + kube-proxy]
+    W2[K3s Worker2<br/>100.115.0.41<br/>2C 4G 80G<br/>kubelet + kube-proxy]
+end
+
+subgraph K3S [K3s 集群内部服务]
+    GHOST[Ghost 博客<br/>:30080 · NodePort]
+    KUBOARD[Kuboard 管理<br/>:31717 · NodePort]
+    MINIO[MinIO 对象存储<br/>:31901 · S3 API]
+    ALIST[AList 网盘聚合<br/>:31717 · 40TB]
+    GRAFANA[Grafana 可视化<br/>:30858 · 仪表盘]
+    VM[VictoriaMetrics<br/>:8428 · 90天保留]
+    NE[node_exporter<br/>:9100 · DaemonSet]
+    MDB[MariaDB<br/>:3306 · InnoDB]
+    REDIS[Redis<br/>:6379 · 缓存层]
+end
+
+subgraph LOG [日志系统 · logging 命名空间]
+    ES[Elasticsearch<br/>:9200 · 单节点 · 7天保留]
+    FB[Fluent Bit<br/>DaemonSet · 日志采集]
+    KB[Kibana<br/>:5601 · NodePort 30561<br/>日志可视化]
+end
+
+MASTER ---|控制面| K3S
+W1 & W2 -.->|工作负载| K3S
+
+NG -->|*.pineapple-user.site<br/>:31717| K3S
+NG -->|pass.pineapple-user.site| JD
+NG -->|kibana.pineapple-user.site| LOG
+
+subgraph JD [京东云 · 独立节点]
+    VW[Vaultwarden<br/>100.115.0.2<br/>:8080 · 密码管理]
+    UK[Uptime Kuma<br/>100.115.0.2<br/>:3001 · 可用性监控]
+    NE2[node_exporter<br/>:9100]
+end
+
+subgraph HSY [火山云 · 堡垒机]
+    BASTION[Next-Terminal<br/>100.115.0.3<br/>2C 2G 40G 1Mbps<br/>仅 Tailscale 内网访问]
+end
+
+GHOST --> MDB & REDIS
+GHOST -.->|附件/图片| MINIO
+ALIST -.->|115 网盘挂载| CLOUD[115 云盘 40TB]
+GRAFANA --> VM
+VM -.->|采集指标| NE & NE2
+FB -->|采集日志| ES
+KB -->|查询| ES
+
+MASTER & W1 & W2 -.->|Self-hosted Runner| GITHUB[GitHub Actions<br/>CI/CD]
+
+RESEND -.->|ghost-tentative.me| EMAIL([163 邮箱<br/>每日 09:02 日报])
+
+%% ==================== 样式定义 (颜色搭配) ====================
+classDef user fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#000;
+classDef proxy fill:#bae6fd,stroke:#0284c7,stroke-width:2px,color:#000;
+classDef ext fill:#e5e7eb,stroke:#4b5563,stroke-width:2px,color:#000;
+classDef core fill:#c7d2fe,stroke:#4f46e5,stroke-width:2px,color:#000;
+classDef app fill:#bbf7d0,stroke:#16a34a,stroke-width:2px,color:#000;
+classDef db fill:#fed7aa,stroke:#ea580c,stroke-width:2px,color:#000;
+classDef monitor fill:#e9d5ff,stroke:#9333ea,stroke-width:2px,color:#000;
+classDef log fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#000;
+
+%% 批量应用样式到节点
+class User,EMAIL user;
+class CF,NG proxy;
+class RESEND,GITHUB,CLOUD ext;
+class MASTER,W1,W2 core;
+class GHOST,KUBOARD,ALIST,VW,BASTION app;
+class MINIO,MDB,REDIS db;
+class GRAFANA,VM,NE,NE2,UK monitor;
+class ES,FB,KB log;
+
+%% 子图(云环境)背景色
+style DO fill:#f8fafc,stroke:#94a3b8,stroke-width:2px,stroke-dasharray: 5 5
+style K3S fill:#f0f9ff,stroke:#7dd3fc,stroke-width:2px,stroke-dasharray: 5 5
+style JD fill:#fff1f2,stroke:#fda4af,stroke-width:2px,stroke-dasharray: 5 5
+style HSY fill:#fff7ed,stroke:#fdba74,stroke-width:2px,stroke-dasharray: 5 5
+style LOG fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,stroke-dasharray: 5 5
