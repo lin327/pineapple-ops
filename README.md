@@ -63,9 +63,11 @@ graph TB
 | 工具节点 | 京东云 | `100.115.0.2` | 2C 4G 60G | Vaultwarden + Uptime Kuma |
 | 堡垒机 | 火山云 | `100.115.0.3` | 2C 2G 40G | Next-Terminal (仅内网) |
 
-## 初始化脚本
+## 脚本
 
-脚本位于 `scripts/init/`，按功能分类：
+### 初始化脚本 (`scripts/init/`)
+
+服务器装机时一次性执行：
 
 | 脚本 | 用途 | 适用节点 |
 | :--- | :--- | :--- |
@@ -74,8 +76,7 @@ graph TB
 | `int-docker.sh` | Docker 环境 | 京东云 |
 | `int-k3s.sh` | K3s 集群 | DigitalOcean |
 | `int-bastion.sh` | 堡垒机 | 火山云 |
-
-### 使用方式
+| `setup_python.sh` | Python 环境 + venv | 所有节点 |
 
 ```bash
 # 1. 通用初始化 (所有节点先运行)
@@ -95,11 +96,12 @@ sudo bash scripts/init/int-k3s.sh worker 100.115.0.33 <token>
 
 # 6. 堡垒机
 sudo bash scripts/init/int-bastion.sh
+
+# 7. Python 环境
+sudo bash scripts/init/setup_python.sh
 ```
 
-### 环境变量
-
-脚本支持通过环境变量覆盖默认配置：
+环境变量：
 
 ```bash
 # int.sh
@@ -111,6 +113,26 @@ NODE_LOCATION=cn sudo bash int-docker.sh
 # int-docker.sh (自定义数据目录)
 DOCKER_DATA_DIR=/data/docker sudo bash int-docker.sh
 ```
+
+### 运维工具 (`scripts/tools/`)
+
+日常运维使用，需先激活 Python 虚拟环境：
+
+```bash
+source /home/venv/bin/activate
+```
+
+| 脚本 | 用途 | 用法 |
+| :--- | :--- | :--- |
+| `server_info.py` | 服务器信息巡检 | `python3 scripts/tools/server_info.py` |
+| `log_parser.py` | 日志关键字扫描 | `python3 scripts/tools/log_parser.py -f /var/log/syslog -k error` |
+| `system_monitor.py` | CPU/内存实时监控 | `python3 scripts/tools/system_monitor.py` |
+
+### 备份脚本 (`scripts/backup/`)
+
+| 脚本 | 用途 |
+| :--- | :--- |
+| `backup-db.sh` | 数据库备份 |
 
 ## 服务路由
 
@@ -175,6 +197,7 @@ Nginx 统一入口，SSL 终结后转发至各服务：
 │   ├── alist-k3s.yaml           # AList 网盘
 │   └── kuboard-create-token.yaml
 └── scripts/
-    ├── init/                    # 初始化脚本
+    ├── init/                    # 初始化脚本（装机时执行）
+    ├── tools/                   # 运维工具（日常使用）
     └── backup/                  # 备份脚本
 ```
