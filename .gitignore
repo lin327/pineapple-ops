@@ -31,3 +31,8 @@ opencode.json
 
 # SSL 目录图片
 docker/nginx/ssl/*.png
+
+# Ignored docs
+
+# Ignore specific docs
+7.*.md
