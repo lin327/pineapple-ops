@@ -88,7 +88,7 @@ apt update
 apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # 6. 配置 Docker Daemon
-# 默认配置有点糙，这里做了一些优化：
+# note: 生产环境关键优化项：
 # - 日志轮转：防止日志文件撑爆磁盘
 # - overlay2 存储驱动：性能最好
 # - live-restore：Docker 重启时容器不中断

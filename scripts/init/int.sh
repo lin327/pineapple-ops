@@ -131,14 +131,14 @@ else
 fi
 
 # 7. SSH 安全加固
-# 默认的 SSH 配置有点松，收紧一下更安全。
+# ! 默认的 SSH 配置有点松，收紧一下更安全。
 info ">>> 7/7 SSH 安全加固"
 SSH_CONFIG="/etc/ssh/sshd_config"
 if [ -f "${SSH_CONFIG}" ]; then
     # 先备份，万一改坏了还能恢复
     cp "${SSH_CONFIG}" "${SSH_CONFIG}.bak.$(date +%Y%m%d)"
 
-    # 如果已经配了 SSH 密钥，就禁用密码登录，更安全
+    # note: 已配密钥时禁用密码登录，仅保留密钥认证
     if [ -d /root/.ssh ] && [ -f /root/.ssh/authorized_keys ]; then
         sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' "${SSH_CONFIG}"
         sed -i 's/^#*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' "${SSH_CONFIG}"

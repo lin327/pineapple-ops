@@ -1,5 +1,6 @@
 import argparse
 import os 
+# note: 核心解析逻辑 — 逐行扫描，大小写不敏感匹配
 def parse_logs(log_file,keyword):
     if not os.path.isfile(log_file):
         print(f"Error: The file '{log_file}' does not exist.")

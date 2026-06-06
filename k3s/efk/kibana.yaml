@@ -40,7 +40,7 @@ spec:
             - name: SERVER_BASEPATH
               value: ""
             - name: XPACK_SECURITY_ENABLED
-              value: "false"  # 内网访问，暂不开启认证
+              value: "false"  # ! warning: 内网访问暂不开启认证，公网部署前必须启用
             - name: LOGGING_ROOT_LEVEL
               value: "warn"
 

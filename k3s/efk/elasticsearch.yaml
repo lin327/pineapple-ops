@@ -138,7 +138,7 @@ spec:
             - name: bootstrap.memory_lock
               value: "false"  # K3s 环境禁用
             - name: xpack.security.enabled
-              value: "false"  # 内网访问，暂不开启认证
+              value: "false"  # ! warning: 内网访问暂不开启认证，公网部署前必须启用
             - name: xpack.security.enrollment.enabled
               value: "false"
 

@@ -1,3 +1,4 @@
+# ! warning: VAULTWARDEN_ADMIN_TOKEN 通过环境变量注入，不要硬编码在文件中
 services:
   uptime-kuma:
     image: louislam/uptime-kuma:latest

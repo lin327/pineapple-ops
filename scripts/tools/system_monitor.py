@@ -2,6 +2,7 @@ import psutil
 import time
 from datetime import datetime
 
+# note: 轻量级系统资源监控，适合开发调试使用
 def monitor_system():
     print("开始监控系统资源使用情况（按ctrl + c /cmd + c 退出）")
     print ("-" * 60)

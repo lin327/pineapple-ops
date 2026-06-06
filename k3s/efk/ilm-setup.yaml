@@ -53,7 +53,7 @@ data:
     done
     echo "Elasticsearch 已就绪"
 
-    # 创建 ILM 策略: 7 天后删除
+    # note: ILM 策略 — 索引 1 天滚动，7 天后自动删除，防止磁盘占满
     echo "创建 ILM 策略..."
     curl -X PUT "http://elasticsearch:9200/_ilm/policy/k8s-logs-policy" \
       -H 'Content-Type: application/json' \

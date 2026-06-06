@@ -109,7 +109,7 @@ http {
                application/vnd.ms-fontobject image/svg+xml;
 
     # --- 安全头 ---
-    # 这些头能防很多常见攻击，建议都加上
+    # ! 这些头能防很多常见攻击，生产环境必须加上
     add_header X-Frame-Options "SAMEORIGIN" always;          # 防点击劫持
     add_header X-Content-Type-Options "nosniff" always;      # 防 MIME 类型嗅探
     add_header X-XSS-Protection "1; mode=block" always;     # 防 XSS
@@ -150,7 +150,7 @@ ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDS
 ssl_prefer_server_ciphers off;
 
 # HSTS -- 告诉浏览器以后都用 HTTPS 访问
-# 注意: 一旦启用，想回退到 HTTP 会很麻烦，先在测试环境试
+# ! warning: 一旦启用，想回退到 HTTP 会很麻烦，先在测试环境试
 # add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
 EOF
 

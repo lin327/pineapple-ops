@@ -12,6 +12,7 @@ metadata:
   namespace: kuboard
 
 ---
+# note: Kuboard 使用 cluster-admin 权限，生产环境建议收紧为最小权限
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:

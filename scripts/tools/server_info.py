@@ -5,7 +5,7 @@ import subprocess
 import shutil
 
 try:
-    import pwd  # Unix/Linux/macOS 用于读取本机的用户账单信息
+    import pwd  # note: Unix/Linux/macOS 专用模块，Windows 上不存在
 except ImportError:
     pwd = None
 
@@ -110,6 +110,7 @@ def get_server_info():
         print(f"Swap 总量: {get_size(swap.total)}")
         print(f"Swap 已用: {get_size(swap.used)} ({swap.percent}%)")
     else:
+        # warning: 无 Swap 分区可能导致低内存服务器 OOM
         print("⚠ 未检测到 Swap 分区 —— 建议为低内存服务器配置 swap")
 
     # ================================================================
@@ -216,7 +217,7 @@ def get_server_info():
     else:
         print("提示: 当前系统不支持读取 Unix 用户列表。")
 
-    # 检查 root 是否可直接 SSH 登录（安全审计重点）
+    # ! 检查 root 是否可直接 SSH 登录（安全审计重点）
     print("\n  --- SSH 安全配置 ---")
     sshd_config = run_cmd("cat /etc/ssh/sshd_config 2>/dev/null")
     if sshd_config:
@@ -249,7 +250,7 @@ def get_server_info():
     # ================================================================
     # 8. 防火墙状态
     # ================================================================
-    # Debian 默认不开启防火墙，刚装完必须确认
+    # ! warning: Debian 默认不开启防火墙，刚装完必须确认
     print("\n" + "=" * 40, "防火墙状态", "=" * 40)
 
     # 优先检查 ufw（Debian 常用的简化防火墙工具）

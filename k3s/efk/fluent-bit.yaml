@@ -165,6 +165,7 @@ spec:
         prometheus.io/path: "/api/v1/metrics/prometheus"
     spec:
       serviceAccountName: fluent-bit
+      # note: 容忍 master 节点污点，确保日志采集覆盖所有节点
       tolerations:
         - key: node-role.kubernetes.io/master
           effect: NoSchedule

@@ -41,6 +41,7 @@ warning(){ log "⚠️  $*"; }
 error() { log "❌ $*"; exit 1; }
 
 # ---------------------- 配置区 ----------------------
+# ! warning: MYSQL_PASS 和 PG_PASS 通过环境变量传入，不要硬编码在脚本中
 # 备份目录和保留策略
 BACKUP_DIR="${BACKUP_DIR:-/opt/backups/databases}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
@@ -94,7 +95,7 @@ if [ "${ENABLE_MYSQL}" == "true" ]; then
     MYSQL_BACKUP_FILE="${BACKUP_DIR}/mysql_${MYSQL_DB}_${DATE}.sql.gz"
 
     if command -v mysqldump &>/dev/null; then
-        # 用环境变量传密码，避免在 ps 进程列表里暴露
+        # note: 用环境变量传密码，避免在 ps 进程列表里暴露明文密码
         if MYSQL_PWD="${MYSQL_PASS}" mysqldump -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" "${MYSQL_DB}" 2>/dev/null | gzip > "${MYSQL_BACKUP_FILE}"; then
             success "MySQL 备份完成: ${MYSQL_BACKUP_FILE}"
         else

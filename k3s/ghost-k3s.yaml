@@ -9,6 +9,7 @@ metadata:
   name: ghost-mysql-secret
   namespace: ghost
 type: Opaque
+# ! fixme: 部署前必须替换为真实强密码，当前为占位符
 stringData:
   root-password: "CHANGE_ME_ROOT_PASSWORD"
   ghost-password: "CHANGE_ME_GHOST_PASSWORD"

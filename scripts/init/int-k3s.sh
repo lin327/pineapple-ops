@@ -10,6 +10,7 @@
 #   Master: sudo bash int-k3s.sh master
 #   Worker: sudo bash int-k3s.sh worker <master_ip> <node_token>
 #
+# note: Master 先跑拿 token，Worker 再用 token 加入集群
 # 环境变量:
 #   K3S_VERSION        - K3s 版本，留空用最新版
 #   FLANNEL_IFACE      - 网络接口，默认 tailscale0

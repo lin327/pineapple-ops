@@ -28,6 +28,7 @@ spec:
           name: s3
         - containerPort: 9001
           name: console
+        # ! fixme: 硬编码密码存在安全风险，应迁移至 K8s Secret
         env:
         - name: MINIO_ROOT_USER
           value: "admin"

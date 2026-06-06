@@ -6,6 +6,7 @@
 # 堡垒机比较敏感，只允许通过 Tailscale 内网访问，公网不开放任何端口。
 #
 # 前置条件: 先跑 int.sh 完成基础初始化
+# ! 堡垒机安全等级最高，公网不开放任何端口，仅通过 Tailscale 访问
 # 用法: sudo bash int-bastion.sh
 # 环境变量:
 #   NT_DATA_DIR      - Next-Terminal 数据目录，默认 /opt/next-terminal/data

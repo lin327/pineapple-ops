@@ -14,7 +14,7 @@ spec:
       labels:
         app: alist
     spec:
-      # 固定在新加坡 Master 节点（115 登录状态不能漂移）
+      # note: 固定在新加坡 Master 节点（115 登录状态不能漂移）
       nodeSelector:
         kubernetes.io/hostname: sg-do-k8s-master-01
       containers:
